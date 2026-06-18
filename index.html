@@ -191,7 +191,7 @@
                 data: {
                     datasets: [
                         { label: 'AD (Talep)', data: [], showLine: true, borderColor: '#3b82f6', borderWidth: 3, pointRadius: 0, datalabels: { color: '#3b82f6', align: 'right' } },
-                        { label: 'Yeni SRAS', data: [], showLine: true, borderColor: '#a855f7', borderWidth: 3, pointRadius: 0, datalabels: { color: '#a855f7', align: 'right' } },
+                        { label: 'Yeni SRAS (Uyum)', data: [], showLine: true, borderColor: '#a855f7', borderWidth: 3, pointRadius: 0, datalabels: { color: '#a855f7', align: 'right' } },
                         { label: 'LRAS (Kapasite)', data: [], showLine: true, borderColor: '#10b981', borderWidth: 2.5, pointRadius: 0, datalabels: { color: '#10b981', align: 'top' } },
                         { label: 'E_LR (Uzun Dönem Denge)', data: [], pointRadius: 6, pointBackgroundColor: '#a855f7', backgroundColor: '#a855f7', datalabels: { color: '#a855f7', align: 'bottom', offset: 8 } }
                     ]
@@ -209,25 +209,32 @@
             document.getElementById('srasVal').innerText = srasShift;
             document.getElementById('lrasVal').innerText = lrasPos;
 
+            // Kısa dönem denge matematiği (AD ve mevcut SRAS kesişimi)
             const eqP_SR = (adShift + srasShift) / 2;
             const eqY_SR = 50 + (adShift - srasShift) / 2;
 
+            // Uzun dönem nihai denge matematiği (Ekonomi her zaman yeni LRAS çizgisi üzerine oturur)
             const eqY_LR = lrasPos;
-            const eqP_LR = adShift + (50 - lrasPos);
+            const eqP_LR = adShift + (50 - lrasPos); // AD doğrusu üzerindeki fiyat düzeyi
+
+            // Teorik Uyum: Yeni SRAS'ın eğimi 1'dir. E_LR noktasından (eqY_LR, eqP_LR) geçen doğrunun X eksenini kestiği başlangıç noktasını buluyoruz.
+            const newSrasIntercept = eqY_LR - eqP_LR;
 
             document.getElementById('currentY').innerText = Math.round(eqY_SR * 10);
             document.getElementById('currentP').innerText = Math.round(eqP_SR * 2);
             document.getElementById('futureY').innerText = Math.round(eqY_LR * 10);
             document.getElementById('futureP').innerText = Math.round(eqP_LR * 2);
             
+            // 1. Grafik Verileri (Kısa Dönem)
             chartSR.data.datasets[0].data = [{ x: adShift - 35, y: adShift + 35 }, { x: adShift + 35, y: adShift - 35 }]; 
             chartSR.data.datasets[1].data = [{ x: 50 - (100 - srasShift) / 2, y: 0 }, { x: 50 + srasShift / 2, y: 100 }]; 
             chartSR.data.datasets[2].data = [{ x: lrasPos, y: 5 }, { x: lrasPos, y: 95 }]; 
             chartSR.data.datasets[3].data = [{ x: eqY_SR, y: eqP_SR }]; 
             chartSR.update();
 
+            // 2. Grafik Verileri (Uzun Dönem Dinamik Dengesi)
             chartLR.data.datasets[0].data = [{ x: adShift - 35, y: adShift + 35 }, { x: adShift + 35, y: adShift - 35 }]; 
-            chartLR.data.datasets[1].data = [{ x: eqY_LR - 35, y: eqP_LR - 35 }, { x: eqY_LR + 35, y: eqP_LR + 35 }]; 
+            chartLR.data.datasets[1].data = [{ x: newSrasIntercept, y: 0 }, { x: newSrasIntercept + 100, y: 100 }]; 
             chartLR.data.datasets[2].data = [{ x: lrasPos, y: 5 }, { x: lrasPos, y: 95 }]; 
             chartLR.data.datasets[3].data = [{ x: eqY_LR, y: eqP_LR }]; 
             chartLR.update();
@@ -241,7 +248,6 @@
             const shortRunDetail = document.getElementById('shortRunDetail');
             const longRunDetail = document.getElementById('longRunDetail');
             
-            // IS-LM Link Etiketleri
             const isLinkText = document.getElementById('isLinkText');
             const lmLinkText = document.getElementById('lmLinkText');
 
@@ -253,7 +259,7 @@
                 pulseText.innerText = "Ekonomi potansiyelinde çalışıyor. Fabrikalar tam kapasitede.";
 
                 shortRunDetail.innerHTML = "<p>• <b>Ekonomi Dengede:</b> Toplam talep ve toplam arz, uzun dönemli üretim kapasitesiyle (LRAS) tam bir uyum içinde kesişiyor.</p>";
-                longRunDetail.innerHTML = "<p>• <b>Uyam Mekanizması:</b> Ekonomi zaten potansiyelinde olduğu için piyasa ve fiyat istikrarı korunuyor.</p>";
+                longRunDetail.innerHTML = "<p>• <b>Uyum Mekanizması:</b> Ekonomi zaten potansiyelinde olduğu için piyasa ve fiyat istikrarı korunuyor.</p>";
                 
                 isLinkText.innerHTML = "Şu an mal piyasası dengede. <b>IS eğrisi</b> tam olması gereken yerde ve AD eğrisini kararlı bir seviyede tutuyor.";
                 lmLinkText.innerHTML = "Fiyatlar kararlı olduğu için reel para arzı sabit. <b>LM eğrisi</b> hareket etmiyor ve faizler dengede.";
@@ -262,10 +268,9 @@
                 pulseTitle.innerText = "📉 Durgunluk Var (Resesyon)";
                 pulseText.innerText = `Ekonomi potansiyelinin altında (${Math.round(outputGap*10)} birim açık). Fabrikalar eksik kapasite çalışıyor.`;
 
-                shortRunDetail.innerHTML = `<p>• <b>Negatif Şok Etkisi:</b> Kısa dönem denge sola kaydı. Üretim düştü, işsizlik riski var.</p>`;
-                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Uyum:</b> İşsizlik nedeniyle nominal ücretler ve maliyetler ucuzlar. <b>SRAS sağa kayarak</b> ekonomiyi potansiyele geri taşır.</p>`;
+                shortRunDetail.innerHTML = `<p>• <b>Negatif Şok Etkisi:</b> Kısa dönem denge potansiyelin soluna kaydı. Üretim düştü, işsizlik riski var.</p>`;
+                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Uyum:</b> İşsizlik nedeniyle nominal ücretler ve girdi maliyetleri ucuzlar. Maliyetler düştüğü için <b>SRAS sağa kayarak</b> ekonomiyi yeni potansiyele geri taşır.</p>`;
                 
-                // IS-LM Bağlantısı (Resesyon Senaryosu)
                 if (adShift < 50) {
                     isLinkText.innerHTML = "<b>IS Eğrisi Sola Kaydı:</b> Kamu harcamalarının azalması veya vergilerin artması IS eğrisini sola itti. Bu durum AD'yi de sola kaydırarak resesyona yol açtı.";
                 } else {
@@ -274,19 +279,18 @@
                 lmLinkText.innerHTML = "<b>LM Sağa Kayacak:</b> Uzun vadede fiyatlar (P) düştükçe reel para arzı (M/P) artacak. Bu da <b>LM eğrisini sağa kaydırarak</b> faizleri düşürecek ve yatırımları canlandıracak.";
             } else {
                 pulseCard.className = "p-4 rounded-xl border bg-rose-50 border-rose-100 text-rose-800";
-                pulseTitle.innerText = "🔥 Aşırı Isınma (Enflasyonist)";
-                pulseText.innerText = `Ekonomi kapasitesinin üzerinde zorlanıyor (+${Math.round(outputGap*10)} birim). Enflasyon baskısı var.`;
+                pulseTitle.innerText = "🔥 Enflasyonist Genişleme";
+                pulseText.innerText = `Ekonomi kapasitesinin üzerinde zorlanıyor (+${Math.round(outputGap*10)} birim). Fiyat artış baskısı yüksek.`;
 
-                shortRunDetail.innerHTML = `<p>• <b>Pozitif Şok Etkisi:</b> Kısa dönem denge potansiyelin üzerine çıktı. Fabrikalar fazla mesai yapıyor.</p>`;
-                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Uyum:</b> İş gücü kıtlığı ücretleri artırır, artan maliyetler <b>SRAS'ı sola kaymaya zorlar</b>. Ekonomi potansiyele dönerken yüksek enflasyon kalır.</p>`;
+                shortRunDetail.innerHTML = `<p>• <b>Pozitif Şok Etkisi:</b> Kısa dönem denge potansiyelin üzerine çıktı. Fabrikalar fazla mesai yapıyor ve üretim geçici olarak sınırları zorluyor.</p>`;
+                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Uyum:</b> İş gücü kıtlığı ve aşırı talep nominal ücretleri artırır. Artan üretim maliyetleri sebebiyle <b>SRAS sola kaymaya zorlanır</b>. Ekonomi potansiyele geri dönerken fiyatlar kalıcı olarak yükselir.</p>`;
                 
-                // IS-LM Bağlantısı (Aşırı Isınma Senaryosu)
                 if (adShift > 50) {
-                    isLinkText.innerHTML = "<b>IS Eğrisi Sağa Kaydı:</b> Genişlemeci maliye politikası (G artışı/T düşüşü) IS eğrisini sağa itti. Bu talep patlaması AD'yi de sağa kaydırarak ekonomiyi aşırı ısıttı.";
+                    isLinkText.innerHTML = "<b>IS Eğrisi Sağa Kaydı:</b> Genişlemeci maliye politikası (G artışı/T düşüşü) IS eğrisini sağa itti. Bu talep patlaması AD'yi de sağa kaydırarak ekonomiyi genişletti.";
                 } else {
                     isLinkText.innerHTML = "Maliyet kaynaklı bir şok var fakat yüksek talep koşulları mal piyasasını zorluyor.";
                 }
-                lmLinkText.innerHTML = "<b>LM Sola Kayacak:</b> Kısa vadeli bu aşırı ısınma fiyatları (P) yükseltiyor. Reel para arzı (M/P) daraldığı için <b>LM eğrisi sola kayacak</b> ve faizleri tırmandıracak.";
+                lmLinkText.innerHTML = "<b>LM Sola Kayacak:</b> Bu genişleme fiyatları (P) yükseltiyor. Reel para arzı (M/P) daraldığı için <b>LM eğrisi sola kayacak</b> ve faizleri tırmandıracak.";
             }
 
             if (eqP_LR > 50) {

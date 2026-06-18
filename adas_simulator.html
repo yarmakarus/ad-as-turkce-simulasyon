@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AD-AS Ekonomik Politika Simülatörü</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen p-6">
+
+    <header class="max-w-7xl mx-auto flex justify-between items-center bg-white p-4 rounded-xl shadow-sm mb-6 border border-gray-100">
+        <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <span>📈</span> AD-AS Ekonomik Politika Simülatörü
+        </h1>
+        <button onclick="resetSliders()" class="bg-red-500 hover:bg-red-600 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+            Sıfırla
+        </button>
+    </header>
+
+    <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <section class="lg:col-span-1 bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-5">
+            <h2 class="text-lg font-semibold text-gray-700 border-b pb-2 mb-2">Politika Araçları</h2>
+            
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-sm font-medium text-gray-600">Toplam Talep (AD)</label>
+                    <span id="adVal" class="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded">50</span>
+                </div>
+                <input type="range" id="adSlider" min="15" max="85" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" oninput="updateSimulation()">
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-sm font-medium text-gray-600">Kısa Dönem Arz (SRAS / AS)</label>
+                    <span id="srasVal" class="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded">50</span>
+                </div>
+                <input type="range" id="srasSlider" min="15" max="85" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500" oninput="updateSimulation()">
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-sm font-medium text-gray-600">Potansiyel Üretim (LRAS)</label>
+                    <span id="lrasVal" class="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">50</span>
+                </div>
+                <input type="range" id="lrasSlider" min="25" max="75" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600" oninput="updateSimulation()">
+            </div>
+        </section>
+
+        <section class="lg:col-span-3 flex flex-col gap-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-md font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                        📊 1. Grafik: Kısa Dönem (İlk Etki)
+                    </h3>
+                    <div class="h-80 w-full">
+                        <canvas id="chartSR"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-md font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                        ⏳ 2. Grafik: Uzun Dönem (Nihai Durum)
+                    </h3>
+                    <div class="h-80 w-full">
+                        <canvas id="chartLR"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <h4 class="text-sm font-bold text-blue-800 mb-2 flex items-center gap-1">📊 Şu Anki Durum</h4>
+                    <p class="text-sm text-gray-700">Üretim Seviyesi (Y): <span id="currentY" class="font-bold">500</span></p>
+                    <p class="text-sm text-gray-700">Fiyat Düzeyi (P): <span id="currentP" class="font-bold">100</span></p>
+                </div>
+
+                <div id="pulseCard" class="p-4 rounded-xl border">
+                    <h4 id="pulseTitle" class="text-sm font-bold mb-2 flex items-center gap-1">⚖️ Piyasanın Nabzı</h4>
+                    <p id="pulseText" class="text-xs text-gray-700 font-medium">Yükleniyor...</p>
+                </div>
+
+                <div class="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                    <h4 class="text-sm font-bold text-purple-800 mb-2 flex items-center gap-1">🏛️ Gelecekteki Durum</h4>
+                    <p class="text-sm text-gray-700">Potansiyel Üretim: <span id="futureY" class="font-bold">500</span></p>
+                    <p class="text-sm text-gray-700">Nihai Fiyat (P): <span id="futureP" class="font-bold">100</span></p>
+                </div>
+
+                <div id="inflationCard" class="p-4 rounded-xl border">
+                    <h4 class="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1">📝 Uzun Vadede Fiyatlar</h4>
+                    <p id="inflationText" class="text-xs text-gray-700 font-medium">Yükleniyor...</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-amber-50/60 p-5 rounded-xl border border-amber-200/70 shadow-sm">
+                    <h4 class="text-md font-bold text-amber-900 mb-3 flex items-center gap-1">
+                        🧠 Kısa Vadede Ne Oldu? (Eğri Hareketleri)
+                    </h4>
+                    <div id="shortRunDetail" class="text-sm text-amber-900/90 space-y-2"></div>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="text-md font-bold text-slate-800 mb-3 flex items-center gap-1">
+                        ⚙️ Uzun Vadede Ekonomi Kendini Nasıl Düzeltecek?
+                    </h4>
+                    <div id="longRunDetail" class="text-sm text-slate-700 space-y-2"></div>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-5 shadow-sm">
+                <h4 class="text-md font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                    🔗 Perde Arkası: IS-LM-FE Modeli ile Bağlantı ve Geçiş Köprüsü
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-indigo-950">
+                    <div class="bg-white/80 p-3 rounded-lg border border-indigo-50">
+                        <h5 class="font-bold text-blue-800 mb-1">🛒 IS Eğrisi & AD İlişkisi</h5>
+                        <p id="isLinkText">Kamu harcamaları (G) veya vergi (T) değişimleri doğrudan IS eğrisini kaydırır. IS eğrisi her kaydığında, sabit bir fiyat düzeyinde mal piyasası dengesi değiştiği için AD (Toplam Talep) eğrisi de aynı yönde sağa veya sola kayar.</p>
+                    </div>
+                    <div class="bg-white/80 p-3 rounded-lg border border-indigo-50">
+                        <h5 class="font-bold text-amber-700 mb-1">🏦 LM Eğrisi & Fiyat (P) Etkisi</h5>
+                        <p id="lmLinkText">AD-AS'ta fiyatlar (P) değiştikçe, ekonomideki reel para arzı (M/P) değişir. Fiyatlar arttığında reel para daralır, LM sola kayar ve faizler yükselir. Bu durum AD eğrisinin neden aşağı eğimli olduğunu açıklar.</p>
+                    </div>
+                    <div class="bg-white/80 p-3 rounded-lg border border-indigo-50">
+                        <h5 class="font-bold text-emerald-800 mb-1">🏭 FE Doğrusu & LRAS Eşleşmesi</h5>
+                        <p id="feLinkText">IS-LM modelindeki Tam İstihdam (FE) doğrusu, AD-AS modelindeki LRAS (Uzun Dönem Arz) doğrusunun tam olarak kendisidir. Ekonomi uzun dönemde her zaman bu doğal üretim sınırına geri dönmek zorundadır.</p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        let chartSR, chartLR;
+
+        window.onload = function() {
+            initCharts();
+            updateSimulation();
+        };
+
+        function initCharts() {
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { type: 'linear', position: 'bottom', min: 0, max: 100, title: { display: true, text: 'Üretim / Gelir (Y)', font: { size: 11, weight: 'bold' } } },
+                    y: { type: 'linear', min: 0, max: 100, title: { display: true, text: 'Fiyat Düzeyi (P)', font: { size: 11, weight: 'bold' } } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        display: true,
+                        formatter: function(value, context) {
+                            if (context.dataset.label.includes("Denge")) return context.dataset.label;
+                            return context.dataIndex === 1 ? context.dataset.label : null;
+                        },
+                        font: { weight: 'bold', size: 11 },
+                        align: 'top',
+                        offset: 4
+                    }
+                },
+                animation: { duration: 200 }
+            };
+
+            const ctxSR = document.getElementById('chartSR').getContext('2d');
+            chartSR = new Chart(ctxSR, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: 'AD (Talep)', data: [], showLine: true, borderColor: '#3b82f6', borderWidth: 3, pointRadius: 0, datalabels: { color: '#3b82f6', align: 'right' } },
+                        { label: 'SRAS (Arz)', data: [], showLine: true, borderColor: '#f59e0b', borderWidth: 3, pointRadius: 0, datalabels: { color: '#f59e0b', align: 'right' } },
+                        { label: 'LRAS (Kapasite)', data: [], showLine: true, borderColor: '#10b981', borderWidth: 2.5, pointRadius: 0, borderDash: [6, 4], datalabels: { color: '#10b981', align: 'top' } },
+                        { label: 'E_SR (Kısa Dönem Denge)', data: [], pointRadius: 6, pointBackgroundColor: '#ef4444', backgroundColor: '#ef4444', datalabels: { color: '#ef4444', align: 'bottom', offset: 8 } }
+                    ]
+                },
+                options: commonOptions
+            });
+
+            const ctxLR = document.getElementById('chartLR').getContext('2d');
+            chartLR = new Chart(ctxLR, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: 'AD (Talep)', data: [], showLine: true, borderColor: '#3b82f6', borderWidth: 3, pointRadius: 0, datalabels: { color: '#3b82f6', align: 'right' } },
+                        { label: 'Yeni SRAS', data: [], showLine: true, borderColor: '#a855f7', borderWidth: 3, pointRadius: 0, datalabels: { color: '#a855f7', align: 'right' } },
+                        { label: 'LRAS (Kapasite)', data: [], showLine: true, borderColor: '#10b981', borderWidth: 2.5, pointRadius: 0, datalabels: { color: '#10b981', align: 'top' } },
+                        { label: 'E_LR (Uzun Dönem Denge)', data: [], pointRadius: 6, pointBackgroundColor: '#a855f7', backgroundColor: '#a855f7', datalabels: { color: '#a855f7', align: 'bottom', offset: 8 } }
+                    ]
+                },
+                options: commonOptions
+            });
+        }
+
+        function updateSimulation() {
+            const adShift = parseFloat(document.getElementById('adSlider').value);
+            const srasShift = parseFloat(document.getElementById('srasSlider').value);
+            const lrasPos = parseFloat(document.getElementById('lrasSlider').value);
+
+            document.getElementById('adVal').innerText = adShift;
+            document.getElementById('srasVal').innerText = srasShift;
+            document.getElementById('lrasVal').innerText = lrasPos;
+
+            const eqP_SR = (adShift + srasShift) / 2;
+            const eqY_SR = 50 + (adShift - srasShift) / 2;
+
+            const eqY_LR = lrasPos;
+            const eqP_LR = adShift + (50 - lrasPos);
+
+            document.getElementById('currentY').innerText = Math.round(eqY_SR * 10);
+            document.getElementById('currentP').innerText = Math.round(eqP_SR * 2);
+            document.getElementById('futureY').innerText = Math.round(eqY_LR * 10);
+            document.getElementById('futureP').innerText = Math.round(eqP_LR * 2);
+            
+            chartSR.data.datasets[0].data = [{ x: adShift - 35, y: adShift + 35 }, { x: adShift + 35, y: adShift - 35 }]; 
+            chartSR.data.datasets[1].data = [{ x: 50 - (100 - srasShift) / 2, y: 0 }, { x: 50 + srasShift / 2, y: 100 }]; 
+            chartSR.data.datasets[2].data = [{ x: lrasPos, y: 5 }, { x: lrasPos, y: 95 }]; 
+            chartSR.data.datasets[3].data = [{ x: eqY_SR, y: eqP_SR }]; 
+            chartSR.update();
+
+            chartLR.data.datasets[0].data = [{ x: adShift - 35, y: adShift + 35 }, { x: adShift + 35, y: adShift - 35 }]; 
+            chartLR.data.datasets[1].data = [{ x: eqY_LR - 35, y: eqP_LR - 35 }, { x: eqY_LR + 35, y: eqP_LR + 35 }]; 
+            chartLR.data.datasets[2].data = [{ x: lrasPos, y: 5 }, { x: lrasPos, y: 95 }]; 
+            chartLR.data.datasets[3].data = [{ x: eqY_LR, y: eqP_LR }]; 
+            chartLR.update();
+
+            const pulseCard = document.getElementById('pulseCard');
+            const pulseTitle = document.getElementById('pulseTitle');
+            const pulseText = document.getElementById('pulseText');
+            const inflationCard = document.getElementById('inflationCard');
+            const inflationText = document.getElementById('inflationText');
+
+            const shortRunDetail = document.getElementById('shortRunDetail');
+            const longRunDetail = document.getElementById('longRunDetail');
+            
+            // IS-LM Link Etiketleri
+            const isLinkText = document.getElementById('isLinkText');
+            const lmLinkText = document.getElementById('lmLinkText');
+
+            const outputGap = eqY_SR - lrasPos;
+
+            if (Math.abs(outputGap) < 1) {
+                pulseCard.className = "p-4 rounded-xl border bg-emerald-50 border-emerald-100 text-emerald-800";
+                pulseTitle.innerText = "⚖️ Tam İstihdam Dengesi";
+                pulseText.innerText = "Ekonomi potansiyelinde çalışıyor. Fabrikalar tam kapasitede.";
+
+                shortRunDetail.innerHTML = "<p>• <b>Ekonomi Dengede:</b> Toplam talep ve toplam arz, uzun dönemli üretim kapasitesiyle (LRAS) tam bir uyum içinde kesişiyor.</p>";
+                longRunDetail.innerHTML = "<p>• <b>Uyam Mekanizması:</b> Ekonomi zaten potansiyelinde olduğu için piyasa ve fiyat istikrarı korunuyor.</p>";
+                
+                isLinkText.innerHTML = "Şu an mal piyasası dengede. <b>IS eğrisi</b> tam olması gereken yerde ve AD eğrisini kararlı bir seviyede tutuyor.";
+                lmLinkText.innerHTML = "Fiyatlar kararlı olduğu için reel para arzı sabit. <b>LM eğrisi</b> hareket etmiyor ve faizler dengede.";
+            } else if (outputGap < 0) {
+                pulseCard.className = "p-4 rounded-xl border bg-amber-50 border-amber-100 text-amber-800";
+                pulseTitle.innerText = "📉 Durgunluk Var (Resesyon)";
+                pulseText.innerText = `Ekonomi potansiyelinin altında (${Math.round(outputGap*10)} birim açık). Fabrikalar eksik kapasite çalışıyor.`;
+
+                shortRunDetail.innerHTML = `<p>• <b>Negatif Şok Etkisi:</b> Kısa dönem denge sola kaydı. Üretim düştü, işsizlik riski var.</p>`;
+                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Uyum:</b> İşsizlik nedeniyle nominal ücretler ve maliyetler ucuzlar. <b>SRAS sağa kayarak</b> ekonomiyi potansiyele geri taşır.</p>`;
+                
+                // IS-LM Bağlantısı (Resesyon Senaryosu)
+                if (adShift < 50) {
+                    isLinkText.innerHTML = "<b>IS Eğrisi Sola Kaydı:</b> Kamu harcamalarının azalması veya vergilerin artması IS eğrisini sola itti. Bu durum AD'yi de sola kaydırarak resesyona yol açtı.";
+                } else {
+                    isLinkText.innerHTML = "Arz yönlü bir daralma var ancak IS eğrisi ve harcamalar şimdilik baskı altında kalmaya devam ediyor.";
+                }
+                lmLinkText.innerHTML = "<b>LM Sağa Kayacak:</b> Uzun vadede fiyatlar (P) düştükçe reel para arzı (M/P) artacak. Bu da <b>LM eğrisini sağa kaydırarak</b> faizleri düşürecek ve yatırımları canlandıracak.";
+            } else {
+                pulseCard.className = "p-4 rounded-xl border bg-rose-50 border-rose-100 text-rose-800";
+                pulseTitle.innerText = "🔥 Aşırı Isınma (Enflasyonist)";
+                pulseText.innerText = `Ekonomi kapasitesinin üzerinde zorlanıyor (+${Math.round(outputGap*10)} birim). Enflasyon baskısı var.`;
+
+                shortRunDetail.innerHTML = `<p>• <b>Pozitif Şok Etkisi:</b> Kısa dönem denge potansiyelin üzerine çıktı. Fabrikalar fazla mesai yapıyor.</p>`;
+                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Uyum:</b> İş gücü kıtlığı ücretleri artırır, artan maliyetler <b>SRAS'ı sola kaymaya zorlar</b>. Ekonomi potansiyele dönerken yüksek enflasyon kalır.</p>`;
+                
+                // IS-LM Bağlantısı (Aşırı Isınma Senaryosu)
+                if (adShift > 50) {
+                    isLinkText.innerHTML = "<b>IS Eğrisi Sağa Kaydı:</b> Genişlemeci maliye politikası (G artışı/T düşüşü) IS eğrisini sağa itti. Bu talep patlaması AD'yi de sağa kaydırarak ekonomiyi aşırı ısıttı.";
+                } else {
+                    isLinkText.innerHTML = "Maliyet kaynaklı bir şok var fakat yüksek talep koşulları mal piyasasını zorluyor.";
+                }
+                lmLinkText.innerHTML = "<b>LM Sola Kayacak:</b> Kısa vadeli bu aşırı ısınma fiyatları (P) yükseltiyor. Reel para arzı (M/P) daraldığı için <b>LM eğrisi sola kayacak</b> ve faizleri tırmandıracak.";
+            }
+
+            if (eqP_LR > 50) {
+                inflationCard.className = "p-4 rounded-xl border bg-red-50 border-red-100 text-red-800";
+                inflationText.innerText = "Fiyatlar Artacak (Enflasyon): Uzun vadede kalıcı fiyat artışları kaçınılmaz.";
+            } else if (eqP_LR < 50) {
+                inflationCard.className = "p-4 rounded-xl border bg-teal-50 border-teal-100 text-teal-800";
+                inflationText.innerText = "Fiyatlar Düşecek (Deflasyon): Piyasada uzun vadede fiyatların gerilemesine yol açacak.";
+            } else {
+                inflationCard.className = "p-4 rounded-xl border bg-slate-50 border-slate-100 text-slate-700";
+                inflationText.innerText = "Fiyatlar Stabil: Uzun vadede fiyat istikrarı korunuyor.";
+            }
+        }
+
+        function resetSliders() {
+            document.getElementById('adSlider').value = 50;
+            document.getElementById('srasSlider').value = 50;
+            document.getElementById('lrasSlider').value = 50;
+            updateSimulation();
+        }
+    </script>
+</body>
+</html>

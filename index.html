@@ -32,7 +32,7 @@
                     <label class="text-sm font-medium text-gray-600">Toplam Talep (AD)</label>
                     <span id="adVal" class="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded">50</span>
                 </div>
-                <input type="range" id="adSlider" min="15" max="85" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" oninput="updateSimulation()">
+                <input type="range" id="adSlider" min="15" max="85" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" oninput="updateSimulation('AD')">
             </div>
 
             <div>
@@ -40,7 +40,7 @@
                     <label class="text-sm font-medium text-gray-600">Kısa Dönem Arz (SRAS / AS)</label>
                     <span id="srasVal" class="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded">50</span>
                 </div>
-                <input type="range" id="srasSlider" min="15" max="85" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500" oninput="updateSimulation()">
+                <input type="range" id="srasSlider" min="15" max="85" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500" oninput="updateSimulation('SRAS')">
             </div>
 
             <div>
@@ -48,7 +48,7 @@
                     <label class="text-sm font-medium text-gray-600">Potansiyel Üretim (LRAS)</label>
                     <span id="lrasVal" class="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded">50</span>
                 </div>
-                <input type="range" id="lrasSlider" min="25" max="75" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600" oninput="updateSimulation()">
+                <input type="range" id="lrasSlider" min="25" max="75" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600" oninput="updateSimulation('LRAS')">
             </div>
         </section>
 
@@ -141,10 +141,11 @@
         Chart.register(ChartDataLabels);
 
         let chartSR, chartLR;
+        let lastMovedSlider = 'NONE'; // Kullanıcının en son neyi değiştirdiğini takip eden değişken
 
         window.onload = function() {
             initCharts();
-            updateSimulation();
+            updateSimulation('NONE');
         };
 
         function initCharts() {
@@ -200,7 +201,11 @@
             });
         }
 
-        function updateSimulation() {
+        function updateSimulation(moved) {
+            if (moved !== 'NONE') {
+                lastMovedSlider = moved;
+            }
+
             const adShift = parseFloat(document.getElementById('adSlider').value);
             const srasShift = parseFloat(document.getElementById('srasSlider').value);
             const lrasPos = parseFloat(document.getElementById('lrasSlider').value);
@@ -209,15 +214,12 @@
             document.getElementById('srasVal').innerText = srasShift;
             document.getElementById('lrasVal').innerText = lrasPos;
 
-            // Kısa dönem denge matematiği (AD ve mevcut SRAS kesişimi)
             const eqP_SR = (adShift + srasShift) / 2;
             const eqY_SR = 50 + (adShift - srasShift) / 2;
 
-            // Uzun dönem nihai denge matematiği (Ekonomi her zaman yeni LRAS çizgisi üzerine oturur)
             const eqY_LR = lrasPos;
-            const eqP_LR = adShift + (50 - lrasPos); // AD doğrusu üzerindeki fiyat düzeyi
+            const eqP_LR = adShift + (50 - lrasPos); 
 
-            // Teorik Uyum: Yeni SRAS'ın eğimi 1'dir. E_LR noktasından (eqY_LR, eqP_LR) geçen doğrunun X eksenini kestiği başlangıç noktasını buluyoruz.
             const newSrasIntercept = eqY_LR - eqP_LR;
 
             document.getElementById('currentY').innerText = Math.round(eqY_SR * 10);
@@ -225,14 +227,14 @@
             document.getElementById('futureY').innerText = Math.round(eqY_LR * 10);
             document.getElementById('futureP').innerText = Math.round(eqP_LR * 2);
             
-            // 1. Grafik Verileri (Kısa Dönem)
+            // 1. Grafik Güncelleme
             chartSR.data.datasets[0].data = [{ x: adShift - 35, y: adShift + 35 }, { x: adShift + 35, y: adShift - 35 }]; 
             chartSR.data.datasets[1].data = [{ x: 50 - (100 - srasShift) / 2, y: 0 }, { x: 50 + srasShift / 2, y: 100 }]; 
             chartSR.data.datasets[2].data = [{ x: lrasPos, y: 5 }, { x: lrasPos, y: 95 }]; 
             chartSR.data.datasets[3].data = [{ x: eqY_SR, y: eqP_SR }]; 
             chartSR.update();
 
-            // 2. Grafik Verileri (Uzun Dönem Dinamik Dengesi)
+            // 2. Grafik Güncelleme
             chartLR.data.datasets[0].data = [{ x: adShift - 35, y: adShift + 35 }, { x: adShift + 35, y: adShift - 35 }]; 
             chartLR.data.datasets[1].data = [{ x: newSrasIntercept, y: 0 }, { x: newSrasIntercept + 100, y: 100 }]; 
             chartLR.data.datasets[2].data = [{ x: lrasPos, y: 5 }, { x: lrasPos, y: 95 }]; 
@@ -258,7 +260,7 @@
                 pulseTitle.innerText = "⚖️ Tam İstihdam Dengesi";
                 pulseText.innerText = "Ekonomi potansiyelinde çalışıyor. Fabrikalar tam kapasitede.";
 
-                shortRunDetail.innerHTML = "<p>• <b>Ekonomi Dengede:</b> Toplam talep ve toplam arz, uzun dönemli üretim kapasitesiyle (LRAS) tam bir uyum içinde kesişiyor.</p>";
+                shortRunDetail.innerHTML = "<p>• <b>Genel Denge Sağlandı:</b> Toplam talep ve toplam arz, uzun dönemli üretim kapasitesiyle (LRAS) tam bir uyum içinde kesişiyor.</p>";
                 longRunDetail.innerHTML = "<p>• <b>Uyum Mekanizması:</b> Ekonomi zaten potansiyelinde olduğu için piyasa ve fiyat istikrarı korunuyor.</p>";
                 
                 isLinkText.innerHTML = "Şu an mal piyasası dengede. <b>IS eğrisi</b> tam olması gereken yerde ve AD eğrisini kararlı bir seviyede tutuyor.";
@@ -268,13 +270,21 @@
                 pulseTitle.innerText = "📉 Durgunluk Var (Resesyon)";
                 pulseText.innerText = `Ekonomi potansiyelinin altında (${Math.round(outputGap*10)} birim açık). Fabrikalar eksik kapasite çalışıyor.`;
 
-                shortRunDetail.innerHTML = `<p>• <b>Negatif Şok Etkisi:</b> Kısa dönem denge potansiyelin soluna kaydı. Üretim düştü, işsizlik riski var.</p>`;
-                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Uyum:</b> İşsizlik nedeniyle nominal ücretler ve girdi maliyetleri ucuzlar. Maliyetler düştüğü için <b>SRAS sağa kayarak</b> ekonomiyi yeni potansiyele geri taşır.</p>`;
+                // Akademik Düzeltme: En son hareket ettirilen slider'a göre teşhis koyuluyor
+                if (lastMovedSlider === 'AD') {
+                    shortRunDetail.innerHTML = `<p>• <b>Negatif Talep Şoku:</b> Toplam talep (AD) azaldığı için kısa dönem denge sola kaydı. Üretim düştü, işsizlik riski var.</p>`;
+                } else if (lastMovedSlider === 'SRAS') {
+                    shortRunDetail.innerHTML = `<p>• <b>Negatif Arz Şoku (Stagflasyon):</b> Girdi maliyetlerinin artmasıyla SRAS sola kaydı. Hem fiyatlar yükseldi hem de üretim düştü.</p>`;
+                } else if (lastMovedSlider === 'LRAS' || lastMovedSlider === 'NONE') {
+                    shortRunDetail.innerHTML = `<p>• <b>Kapasite Genişlemesi Açığı:</b> Teknolojik ilerleme veya kaynak artışı nedeniyle potansiyel üretim (LRAS) sağa kaydı. Kısa dönemli harcamalar bu yeni üretim gücüne henüz yetişemediği için geçici bir resesyon açığı oluştu.</p>`;
+                }
+                
+                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Otomatik Uyum:</b> Yüksek işsizlik/kapasite fazlası nedeniyle nominal ücretler ve girdi maliyetleri ucuzlar. Bu maliyet düşüşü <b>SRAS'ı sağa kaymaya zorlayarak</b> ekonomiyi yeni potansiyel (LRAS) çizgisine taşır.</p>`;
                 
                 if (adShift < 50) {
-                    isLinkText.innerHTML = "<b>IS Eğrisi Sola Kaydı:</b> Kamu harcamalarının azalması veya vergilerin artması IS eğrisini sola itti. Bu durum AD'yi de sola kaydırarak resesyona yol açtı.";
+                    isLinkText.innerHTML = "<b>IS Eğrisi Sola Kaydı:</b> Harcamaların veya yatırımların azalması IS eğrisini sola itti. Bu durum AD'yi de sola kaydırarak resesyona yol açtı.";
                 } else {
-                    isLinkText.innerHTML = "Arz yönlü bir daralma var ancak IS eğrisi ve harcamalar şimdilik baskı altında kalmaya devam ediyor.";
+                    isLinkText.innerHTML = "Potansiyel kapasite arttığı için IS eğrisi mevcut harcama kararlılığını korurken, piyasanın genişlemesini izliyor.";
                 }
                 lmLinkText.innerHTML = "<b>LM Sağa Kayacak:</b> Uzun vadede fiyatlar (P) düştükçe reel para arzı (M/P) artacak. Bu da <b>LM eğrisini sağa kaydırarak</b> faizleri düşürecek ve yatırımları canlandıracak.";
             } else {
@@ -282,26 +292,38 @@
                 pulseTitle.innerText = "🔥 Enflasyonist Genişleme";
                 pulseText.innerText = `Ekonomi kapasitesinin üzerinde zorlanıyor (+${Math.round(outputGap*10)} birim). Fiyat artış baskısı yüksek.`;
 
-                shortRunDetail.innerHTML = `<p>• <b>Pozitif Şok Etkisi:</b> Kısa dönem denge potansiyelin üzerine çıktı. Fabrikalar fazla mesai yapıyor ve üretim geçici olarak sınırları zorluyor.</p>`;
-                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Uyum:</b> İş gücü kıtlığı ve aşırı talep nominal ücretleri artırır. Artan üretim maliyetleri sebebiyle <b>SRAS sola kaymaya zorlanır</b>. Ekonomi potansiyele geri dönerken fiyatlar kalıcı olarak yükselir.</p>`;
+                if (lastMovedSlider === 'AD') {
+                    shortRunDetail.innerHTML = `<p>• <b>Pozitif Talep Şoku:</b> Toplam talep (AD) arttığı için kısa dönem denge sağa kaydı. Fabrikalar fazla mesai yapıyor ve üretim geçici olarak sınırları zorluyor.</p>`;
+                } else if (lastMovedSlider === 'SRAS') {
+                    shortRunDetail.innerHTML = `<p>• <b>Geçici Arz Genişlemesi:</b> Girdi maliyetlerinin düşmesi SRAS'ı sağa itti, üretim potansiyeli geçici olarak aştı.</p>`;
+                } else if (lastMovedSlider === 'LRAS') {
+                    shortRunDetail.innerHTML = `<p>• <b>Kapasite Daralması Şoku:</b> Doğal afet veya yapısal sorunlar nedeniyle potansiyel üretim (LRAS) sola kaydı. Mevcut talep bu daralan kapasiteye göre aşırı yüksek kaldığı için enflasyonist baskı oluştu.</p>`;
+                }
+
+                longRunDetail.innerHTML = `<p>• <b>Uzun Vadeli Otomatik Uyum:</b> İş gücü kıtlığı ve aşırı talep nominal ücretleri tırmandırır. Artan üretim maliyetleri sebebiyle <b>SRAS sola kaymaya zorlanır</b>. Ekonomi potansiyele geri dönerken fiyatlar kalıcı olarak yükselir.</p>`;
                 
                 if (adShift > 50) {
-                    isLinkText.innerHTML = "<b>IS Eğrisi Sağa Kaydı:</b> Genişlemeci maliye politikası (G artışı/T düşüşü) IS eğrisini sağa itti. Bu talep patlaması AD'yi de sağa kaydırarak ekonomiyi genişletti.";
+                    isLinkText.innerHTML = "<b>IS Eğrisi Sağa Kaydı:</b> Genişlemeci kararlar veya harcama artışları IS eğrisini sağa itti. Bu durum AD'yi de sağa kaydırarak ekonomiyi genişletti.";
                 } else {
-                    isLinkText.innerHTML = "Maliyet kaynaklı bir şok var fakat yüksek talep koşulları mal piyasasını zorluyor.";
+                    isLinkText.innerHTML = "Kapasite yetersizliği mal piyasasını sıkıştırıyor, dengeler harcama kanadında baskı yaratıyor.";
                 }
                 lmLinkText.innerHTML = "<b>LM Sola Kayacak:</b> Bu genişleme fiyatları (P) yükseltiyor. Reel para arzı (M/P) daraldığı için <b>LM eğrisi sola kayacak</b> ve faizleri tırmandıracak.";
             }
 
             if (eqP_LR > 50) {
                 inflationCard.className = "p-4 rounded-xl border bg-red-50 border-red-100 text-red-800";
-                inflationText.innerText = "Fiyatlar Artacak (Enflasyon): Uzun vadede kalıcı fiyat artışları kaçınılmaz.";
+                inflationText.innerText = "Enflasyonist Baskı: Talep veya maliyet şartları uzun vadede kalıcı fiyat artışlarına yol açıyor.";
             } else if (eqP_LR < 50) {
-                inflationCard.className = "p-4 rounded-xl border bg-teal-50 border-teal-100 text-teal-800";
-                inflationText.innerText = "Fiyatlar Düşecek (Deflasyon): Piyasada uzun vadede fiyatların gerilemesine yol açacak.";
+                if (lrasPos > 50 && adShift >= 50) {
+                    inflationCard.className = "p-4 rounded-xl border bg-teal-50 border-teal-100 text-teal-800";
+                    inflationText.innerText = "Arz Kaynaklı Fiyat Azalışı: Teknolojik gelişme ve kapasite artışı uzun vadede fiyatları kalıcı olarak düşürerek refah yaratıyor.";
+                } else {
+                    inflationCard.className = "p-4 rounded-xl border bg-teal-50 border-teal-100 text-teal-800";
+                    inflationText.innerText = "Deflasyonist Eğilim: Yetersiz talep şartları piyasada uzun vadede fiyatların gerilemesine yol açıyor.";
+                }
             } else {
                 inflationCard.className = "p-4 rounded-xl border bg-slate-50 border-slate-100 text-slate-700";
-                inflationText.innerText = "Fiyatlar Stabil: Uzun vadede fiyat istikrarı korunuyor.";
+                inflationText.innerText = "Fiyatlar Stabil: Uzun vadede fiyat istikrarı ve genel denge korunuyor.";
             }
         }
 
@@ -309,7 +331,8 @@
             document.getElementById('adSlider').value = 50;
             document.getElementById('srasSlider').value = 50;
             document.getElementById('lrasSlider').value = 50;
-            updateSimulation();
+            lastMovedSlider = 'NONE';
+            updateSimulation('NONE');
         }
     </script>
 </body>
